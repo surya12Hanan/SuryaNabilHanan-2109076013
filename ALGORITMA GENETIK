@@ -1,0 +1,177 @@
+Option Explicit
+
+Private Const POPULATION_SIZE As Integer = 6
+Private Const MAX_VALUE_A As Integer = 30
+Private Const MAX_VALUE_BCD As Integer = 10
+Private Const CROSSOVER_RATE As Double = 0.8
+Private Const MUTATION_RATE As Double = 0.1
+Private Const GENERATIONS As Integer = 100
+
+Private Type Chromosome
+    a As Integer
+    b As Integer
+    c As Integer
+    d As Integer
+End Type
+
+Private Population(1 To POPULATION_SIZE) As Chromosome
+
+Private Function ObjectiveFunction(ByVal a As Integer, ByVal b As Integer, ByVal c As Integer, ByVal d As Integer) As Integer
+    ObjectiveFunction = Abs((a + 4 * b + 2 * c + 3 * d) - 30)
+End Function
+
+Private Sub InitializePopulation()
+    Dim i As Integer
+    For i = 1 To POPULATION_SIZE
+        Population(i).a = Int((MAX_VALUE_A + 1) * Rnd)
+        Population(i).b = Int((MAX_VALUE_BCD + 1) * Rnd)
+        Population(i).c = Int((MAX_VALUE_BCD + 1) * Rnd)
+        Population(i).d = Int((MAX_VALUE_BCD + 1) * Rnd)
+    Next i
+End Sub
+
+Private Function CalculateFitness(ByVal chromosome As Chromosome) As Double
+    CalculateFitness = 1 / (1 + ObjectiveFunction(chromosome.a, chromosome.b, chromosome.c, chromosome.d))
+End Function
+
+Private Sub SelectParents(ByRef parent1 As Chromosome, ByRef parent2 As Chromosome)
+    Dim fitnessSum As Double
+    Dim probabilities(1 To POPULATION_SIZE) As Double
+    Dim cumulativeProbabilities(1 To POPULATION_SIZE) As Double
+    Dim i As Integer
+    
+    fitnessSum = 0
+    For i = 1 To POPULATION_SIZE
+        fitnessSum = fitnessSum + CalculateFitness(Population(i))
+    Next i
+    
+    For i = 1 To POPULATION_SIZE
+        probabilities(i) = CalculateFitness(Population(i)) / fitnessSum
+    Next i
+    
+    cumulativeProbabilities(1) = probabilities(1)
+    For i = 2 To POPULATION_SIZE
+        cumulativeProbabilities(i) = cumulativeProbabilities(i - 1) + probabilities(i)
+    Next i
+    
+    For i = 1 To 2
+        Dim r As Double
+        Dim k As Integer
+        
+        r = Rnd
+        For k = 1 To POPULATION_SIZE
+            If cumulativeProbabilities(k) > r Then
+                If i = 1 Then
+                    parent1 = Population(k)
+                Else
+                    parent2 = Population(k)
+                End If
+                Exit For
+            End If
+        Next k
+    Next i
+End Sub
+
+Private Sub Crossover(ByRef offspring1 As Chromosome, ByRef offspring2 As Chromosome)
+    If Rnd < CROSSOVER_RATE Then
+        Dim crossoverPoint As Integer
+        crossoverPoint = Int((LenBBA(offspring1) + 1) * Rnd)
+        
+        offspring1.a = LeftB(offspring1.a, crossoverPoint) & RightB(offspring2.a, LenB(offspring2.a) - crossoverPoint)
+        offspring2.a = LeftB(offspring2.a, crossoverPoint) & RightB(offspring1.a, LenB(offspring1.a) - crossoverPoint)
+        
+        offspring1.b = LeftB(offspring1.b, crossoverPoint) & RightB(offspring2.b, LenB(offspring2.b) - crossoverPoint)
+        offspring2.b = LeftB(offspring2.b, crossoverPoint) & RightB(offspring1.b, LenB(offspring1.b) - crossoverPoint)
+        
+        offspring1.c = LeftB(offspring1.c, crossoverPoint) & RightB(offspring2.c, LenB(offspring2.c) - crossoverPoint)
+        offspring2.c = LeftB(offspring2.c, crossoverPoint) & RightB(offspring1.c, LenB(offspring1.c) - crossoverPoint)
+        
+        offspring1.d = LeftB(offspring1.d, crossoverPoint) & RightB(offspring2.d, LenB(offspring2.d) - crossoverPoint)
+        offspring2.d = LeftB(offspring2.d, crossoverPoint) & RightB(offspring1.d, LenB(offspring1.d) - crossoverPoint)
+    End If
+End Sub
+
+Private Sub Mutate(ByRef chromosome As Chromosome)
+    If Rnd < MUTATION_RATE Then
+        Dim geneToMutate As Integer
+        geneToMutate = Int((4 * Rnd) + 1)
+        
+        Select Case geneToMutate
+            Case 1
+                chromosome.a = Int((MAX_VALUE_A + 1) * Rnd)
+            Case 2
+                chromosome.b = Int((MAX_VALUE_BCD + 1) * Rnd)
+            Case 3
+                chromosome.c = Int((MAX_VALUE_BCD + 1) * Rnd)
+            Case 4
+                chromosome.d = Int((MAX_VALUE_BCD + 1) * Rnd)
+        End Select
+    End If
+End Sub
+
+Private Sub GeneticAlgorithm()
+    InitializePopulation
+    
+    Dim generation As Integer
+    For generation = 1 To GENERATIONS
+        Dim newPopulation(1 To POPULATION_SIZE) As Chromosome
+        Dim newPopulationIndex As Integer
+        newPopulationIndex = 1
+        
+        Do While newPopulationIndex <= POPULATION_SIZE
+            Dim parent1 As Chromosome
+            Dim parent2 As Chromosome
+            SelectParents parent1, parent2
+            
+            Dim offspring1 As Chromosome
+            Dim offspring2 As Chromosome
+            offspring1 = parent1
+            offspring2 = parent2
+            
+            Crossover offspring1, offspring2
+            
+            Mutate offspring1
+            Mutate offspring2
+            
+            newPopulation(newPopulationIndex) = offspring1
+            newPopulation(newPopulationIndex + 1) = offspring2
+            
+            newPopulationIndex = newPopulationIndex + 2
+        Loop
+        
+        Population = newPopulation
+    Next generation
+End Sub
+
+Private Sub SolveOptimizationProblem()
+    Randomize
+    
+    GeneticAlgorithm
+    
+    Dim bestChromosome As Chromosome
+    Dim bestObjectiveFunction As Integer
+    bestChromosome = Population(1)
+    bestObjectiveFunction = ObjectiveFunction(bestChromosome.a, bestChromosome.b, bestChromosome.c, bestChromosome.d)
+    
+    Dim i As Integer
+    For i = 2 To POPULATION_SIZE
+        Dim currentObjectiveFunction As Integer
+        currentObjectiveFunction = ObjectiveFunction(Population(i).a, Population(i).b, Population(i).c, Population(i).d)
+        
+        If currentObjectiveFunction < bestObjectiveFunction Then
+            bestChromosome = Population(i)
+            bestObjectiveFunction = currentObjectiveFunction
+        End If
+    Next i
+    
+    MsgBox "Solusi terbaik:" & vbCrLf & _
+           "a = " & bestChromosome.a & vbCrLf & _
+           "b = " & bestChromosome.b & vbCrLf & _
+           "c = " & bestChromosome.c & vbCrLf & _
+           "d = " & bestChromosome.d & vbCrLf & _
+           "Fungsi objektif terbaik: " & bestObjectiveFunction
+End Sub
+
+Private Sub Form_Load()
+    SolveOptimizationProblem
+End Sub
